@@ -1,0 +1,88 @@
+name: Finances
+version: "0.1.0"
+author: JCPD. <jahan.pd@gmail.com>
+about: A CLI interface for keeping track of ones personal financial situation with analytical tools
+args:
+    - database:
+        short: d
+        long: database
+        value_name: FILE
+        about: Sets a custom config file (needs to be full path)
+        takes_value: true
+subcommands:
+    - view:
+        about: provide a summary of financial items and people
+        args:
+            - class:
+                about: choose what type of financial item or people to list
+                index: 1
+                possible_values:
+                    - people
+                    - assetts
+                    - debts
+                    - income
+                    - expenses
+                    - payslips
+                    - env
+                    - all
+                default_value: all
+    - add:
+        about: add a new financial item
+        subcommands:
+            - assett:
+                about: add an assett
+                args:
+                  - name:
+                      about: string indicating name of assett
+                      index: 1
+                      required: true
+                  - number:
+                      about: number of these items owned
+                      index: 2
+                      required: true
+                      validator_regex: ["[0-9]+", Please enter integer]
+                  - startdate:
+                      about: date of assett acquisition YYYY-MM-DD
+                      index: 3
+                      required: true
+                      validator_regex: ["[0-9]{4}-[0-9]{2}-[0-9]{2}", Please make date in format YYYY-MM-DD]
+                  - min:
+                      about: minimum 'bear case' value of assett
+                      index: 4
+                      required: true
+                      validator_regex: [ '([0-9]+|[0-9]+\.[0-9]+)', Please enter number]
+                  - med:
+                      about: median value of assett
+                      index: 5
+                      required: true
+                      validator_regex: [ '([0-9]+|[0-9]+\.[0-9]+)', Please enter number]
+                  - max:
+                      about: maximum 'bull case' value of assett
+                      index: 6
+                      required: true
+                      validator_regex: [ '([0-9]+|[0-9]+\.[0-9]+)', Please enter number]
+                  - appreciation:
+                      about: float, estimated positive or negative annualised appreciation or depreciation
+                      index: 7
+                      required: true
+                      validator_regex: ['0\.[0-9]+', Please enter float]
+                  - owners:
+                      long: owners
+                      short: o
+                      about: list of owners and their ownership proportion eg personA:0.2 personB:0.8
+                      min_values: 1
+                      required: true
+                      validator_regex: ['[a-zA-Z]+:0\.[0-9]+', Owner format needs to be person:0.1 ]
+                  - type:
+                      long: type
+                      about: type of assett
+                      possible_values: ['equity', 'crypto', 'housing', 'other']
+                  - ticker:
+                      long: ticker
+                      required_if_eq: 
+                        - [type, equity]
+                        - [type, crypto]
+    - edit:
+        about: edit a triple (subject, predicate, object) 
+
+
