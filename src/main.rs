@@ -1,10 +1,12 @@
 #[macro_use]
 extern crate clap;
 use std::fs;
+use std::path::{PathBuf};
 use home;
 use serde_json::{Value};
 use serde_json::json;
-use chrono::{NaiveDate};
+use dialoguer::Confirm;
+// use chrono::{NaiveDate};
 
 fn main() {
     use clap::App;
@@ -23,10 +25,15 @@ fn main() {
     // const predicates: [&str; 9] = [
     //     "min", "max", "med", "frequency", "appreciation", "volatility", "ticker", "type", "is"
     // ];
+    
+    let path: PathBuf;
+    if let Some(m) = m.value_of("database") {
+        path = PathBuf::from(m);
+    } else {
+        path = home.join(".finances/database.json");
+    };
 
-
-    let data = fs::read_to_string(
-        home.join(".finances/database.json"))
+    let data = fs::read_to_string(&path)
         .expect("Unable to get database... ");
 
     let db: Value = serde_json::from_str(&data).expect("JSON not formatted");
@@ -54,18 +61,61 @@ fn main() {
                 .filter(|x| x["predicate"].is_number() & x["object"].eq(&assett["subject"]))
                 .map(|x| (x["subject"].as_str().unwrap(), x["predicate"].as_f64().unwrap()))
                 .collect();
-                println!("{}, attached to: {:?}", assett["subject"], owners)
+                let value: Vec<_> = list.into_iter()
+                    .filter(|x| x["predicate"].eq("med") & x["subject"].eq(&assett["subject"]))
+                    .collect();
+                let numb: Vec<_> = list.into_iter()
+                    .filter(|x| x["predicate"].eq("number") & x["subject"].eq(&assett["subject"]))
+                    .collect();
+                let v: f64 = value[0]["object"].as_f64().unwrap() * numb[0]["object"].as_f64().unwrap();
+                println!("{}, attached to: {:?}, ${}", assett["subject"], owners, v)
             }; 
           }
         }
     }
 
+    if let Some(m) = m.subcommand_matches("delete") {
+        if let Some(m) = m.value_of("name") {
+            if Confirm::new().with_prompt(format!("Do you want to delete {}?", m))
+                .interact().unwrap() {
+                let subset: Vec<_> = list.into_iter().filter(
+                    |x| x["object"] != m && x["subject"] != m
+                    ).collect();
+                let db_json = json!(subset);
+                println!("{}", db_json.to_string());
+                // save db
+                fs::write(&path, db_json.to_string())
+                    .expect("Unable to save to database... ");
+            } else {
+                println!("Delete avoided :)")
+            }
+        }
+    }
+
     // set up add -- note that m is shadowing in code blocks
     if let Some(m) = m.subcommand_matches("add") {
-        // add assett
+        if let Some(m) = m.subcommand_matches("person") {
+            let name: &str = m.value_of("name").unwrap();
+            namecheck(&list, &name);
+            let person = json!({
+                "subject": String::from(name),
+                "predicate": String::from("is"),
+                "object":String::from("person")
+            });
+            dblist.push(person);
+            savedb(&dblist, &path);
+        }
+        // ADD ASSETT LOGIC
         if let Some(m) = m.subcommand_matches("assett") {
-            // dbg!(m.value_of("startdate").unwrap());
-            let name: &str = m.value_of("name").unwrap(); 
+            let name: &str = m.value_of("name").unwrap();
+            namecheck(&list, &name);
+            // ensure assett does not already exist
+            let class = json!({
+                "subject": String::from(name),
+                "predicate": String::from("is"),
+                "object": String::from("assett")
+            });
+            dblist.push(class);
             let numb = json!({
                 "subject": String::from(name),
                 "predicate": String::from("number"),
@@ -109,14 +159,45 @@ fn main() {
             let owners: Vec<_> = m.values_of("owners").unwrap().collect();
             let owners: Vec<_> = owners.into_iter().map(|x| ownsplit(x.to_string())).collect();
             let owners: Vec<_> = normalize(owners);
-            println!("{:?}", owners);
-            // println!(
-            //     "made it to adding assett {}, {}, {:?}, {}, {}, {}, {}, {:?}",
-            //     name, numb, startdate, min, med, max, appreciation, owners
-            //     )
+            for owner in owners {
+                println!("{:?}", owner);
+                let own_obj = json!({
+                    "subject": owner.0,
+                    "predicate": owner.1,
+                    "object": String::from(name)
+                });
+                dblist.push(own_obj);
+            };
+            savedb(&dblist, &path);
         }
     }
-        
+}
+
+#[allow(dead_code)]
+fn savedb(
+    db: &Vec<serde_json::value::Value>,
+    path: &PathBuf
+    ) {
+    let db_json = json!(db);
+    println!("{}", db_json.to_string());
+    // save db
+    fs::write(path, db_json.to_string())
+        .expect("Unable to save to database... ");
+}
+
+fn namecheck(
+    list: &Vec<serde_json::value::Value>, 
+    name: &str
+    ) {
+    let all_names: Vec<_> = list.into_iter()
+        .filter(|x| x["predicate"] == "is").map(|x| x["subject"].as_str().unwrap())
+        .collect();
+    assert!(!all_names.contains(&name), "Assett already exists");
+}
+
+#[allow(dead_code)]
+fn print_type_of<T>(_: &T) {
+    println!("{}", std::any::type_name::<T>())
 }
 
 fn ownsplit(ownstring: String) -> (String, f32) {

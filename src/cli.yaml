@@ -7,7 +7,7 @@ args:
         short: d
         long: database
         value_name: FILE
-        about: Sets a custom config file (needs to be full path)
+        about: Sets a non-default database location (needs to be full path)
         takes_value: true
 subcommands:
     - view:
@@ -29,6 +29,12 @@ subcommands:
     - add:
         about: add a new financial item
         subcommands:
+            - person:
+                about: a member of the family / financial unit
+                args:
+                    - name:
+                        about: unique name
+                        required: true
             - assett:
                 about: add an assett
                 args:
@@ -83,6 +89,14 @@ subcommands:
                         - [type, equity]
                         - [type, crypto]
     - edit:
-        about: edit a triple (subject, predicate, object) 
+        about: edit a triple (subject, predicate, object)
+
+    - delete:
+        about: delete all information relating to an item
+        args:
+            - name:
+                about: enter unique name for item
+
+
 
 
