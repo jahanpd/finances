@@ -78,7 +78,7 @@ subcommands:
                       about: list of owners and their ownership proportion eg personA:0.2 personB:0.8
                       min_values: 1
                       required: true
-                      validator_regex: ['[a-zA-Z]+:0\.[0-9]+', Owner format needs to be person:0.1 ]
+                      validator_regex: ['[a-zA-Z]+:(0|1)\.[0-9]+', Owner format needs to be person:0.1]
                   - type:
                       long: type
                       about: type of assett
@@ -88,8 +88,156 @@ subcommands:
                       required_if_eq: 
                         - [type, equity]
                         - [type, crypto]
+                  - exchange:
+                      long: exchange
+                      required_if_eq: 
+                        - [type, equity]
+                        - [type, crypto]
+            - debt:
+                about: add debt
+                args:
+                  - name:
+                      about: unique name of debt
+                      index: 1
+                      required: true
+                  - startdate:
+                      about: date of debt accrual YYYY-MM-DD
+                      index: 2
+                      required: true
+                      validator_regex: ["[0-9]{4}-[0-9]{2}-[0-9]{2}", Please make date in format YYYY-MM-DD]
+                  - min:
+                      about: minimum 'bull case' value of debt
+                      index: 3
+                      required: true
+                      validator_regex: [ '([0-9]+|[0-9]+\.[0-9]+)', Please enter number]
+                  - med:
+                      about: median value of debt
+                      index: 4
+                      required: true
+                      validator_regex: [ '([0-9]+|[0-9]+\.[0-9]+)', Please enter number]
+                  - max:
+                      about: maximum 'bear case' value of debt
+                      index: 5
+                      required: true
+                      validator_regex: [ '([0-9]+|[0-9]+\.[0-9]+)', Please enter number]
+                  - appreciation:
+                      about: float, estimated positive or negative annualised appreciation or depreciation
+                      index: 6
+                      required: true
+                      validator_regex: ['0\.[0-9]+', Please enter float]
+                  - owners:
+                      long: owners
+                      short: o
+                      about: list of owners and their ownership proportion eg personA:0.2 personB:0.8
+                      min_values: 1
+                      required: true
+                      validator_regex: ['[a-zA-Z]+:(0|1)\.[0-9]+', Owner format needs to be person:0.1]
+            - income:
+                about: add income stream
+                args:
+                  - name:
+                      about: unique name for income
+                      index: 1
+                      required: true
+                  - startdate:
+                      about: date of income accrual YYYY-MM-DD
+                      index: 2
+                      required: true
+                      validator_regex: ["[0-9]{4}-[0-9]{2}-[0-9]{2}", Please make date in format YYYY-MM-DD]
+                  - min:
+                      about: minimum 'bear case' value of income
+                      index: 3
+                      required: true
+                      validator_regex: [ '([0-9]+|[0-9]+\.[0-9]+)', Please enter number]
+                  - med:
+                      about: median value of income
+                      index: 4
+                      required: true
+                      validator_regex: [ '([0-9]+|[0-9]+\.[0-9]+)', Please enter number]
+                  - max:
+                      about: maximum 'bull case' value of income
+                      index: 5
+                      required: true
+                      validator_regex: [ '([0-9]+|[0-9]+\.[0-9]+)', Please enter number]
+                  - frequency:
+                      about: how often you are paid the aforementioned value
+                      index: 6
+                      required: true
+                      possible_values: ['daily', 'weekly', 'monthly', 'annual']
+                  - appreciation:
+                      about: float, estimated positive or negative annualised appreciation or depreciation
+                      index: 7
+                      required: true
+                      validator_regex: ['0\.[0-9]+', Please enter float]
+                  - owners:
+                      long: owners
+                      short: o
+                      about: list of owners and their ownership proportion eg personA:0.2 personB:0.8
+                      min_values: 1
+                      required: true
+                      validator_regex: ['[a-zA-Z]+:(0|1)\.[0-9]+', Owner format needs to be person:0.1]
+            - expense:
+                about: add regular expense
+                args:
+                  - name:
+                      about: unique name for expense
+                      index: 1
+                      required: true
+                  - startdate:
+                      about: date of starting expense YYYY-MM-DD
+                      index: 2
+                      required: true
+                      validator_regex: ["[0-9]{4}-[0-9]{2}-[0-9]{2}", Please make date in format YYYY-MM-DD]
+                  - min:
+                      about: minimum 'bull case' value of expense
+                      index: 3
+                      required: true
+                      validator_regex: [ '([0-9]+|[0-9]+\.[0-9]+)', Please enter number]
+                  - med:
+                      about: median value of expense
+                      index: 4
+                      required: true
+                      validator_regex: [ '([0-9]+|[0-9]+\.[0-9]+)', Please enter number]
+                  - max:
+                      about: maximum 'bear case' value of expense
+                      index: 5
+                      required: true
+                      validator_regex: [ '([0-9]+|[0-9]+\.[0-9]+)', Please enter number]
+                  - frequency:
+                      about: how often you incur the aforementioned expense
+                      index: 6
+                      required: true
+                      possible_values: ['daily', 'weekly', 'monthly', 'annual']
+                  - appreciation:
+                      about: float, estimated positive or negative annualised appreciation or depreciation
+                      index: 7
+                      required: true
+                      validator_regex: ['0\.[0-9]+', Please enter float]
+                  - owners:
+                      long: owners
+                      short: o
+                      about: list of owners and their ownership proportion eg personA:0.2 personB:0.8
+                      min_values: 1
+                      required: true
+                      validator_regex: ['[a-zA-Z]+:(0|1)\.[0-9]+', Owner format needs to be person:0.1]
+
     - edit:
-        about: edit a triple (subject, predicate, object)
+        about: edit a triple (subject, predicate, object). 2 of 3 must be 
+        args:
+            - subject:
+                about: enter the subject name for item
+            - predicate:
+                about: enter the new/old predicate
+            - object:
+                about: enter the new/old object
+            - new:
+                about: add this flag if not editing value in item but adding a new attribute
+                long: new
+                short: n
+
+
+
+
 
     - delete:
         about: delete all information relating to an item

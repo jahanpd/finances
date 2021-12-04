@@ -2,10 +2,12 @@
 extern crate clap;
 use std::fs;
 use std::path::{PathBuf};
+use std::process;
 use home;
 use serde_json::{Value};
 use serde_json::json;
 use dialoguer::Confirm;
+use numberkit::{is_number, as_f32, as_f32d};
 // use chrono::{NaiveDate};
 
 fn main() {
@@ -17,15 +19,10 @@ fn main() {
     // declare important variables
     let home = home::home_dir().unwrap();
     // list of possible financial items
-    const ITEMS: [(&str, &str); 6] = [
+    const ITEMS: [(&str, &str); 5] = [
         ("Assetts", "assett"), ("Debts", "debt"), ("Income", "income"),
-        ("Expenses", "expense"), ("Payslips", "payslips"), ("Environment", "environment")
-    ];
-    // list of non-float predicates
-    // const predicates: [&str; 9] = [
-    //     "min", "max", "med", "frequency", "appreciation", "volatility", "ticker", "type", "is"
-    // ];
-    
+        ("Expenses", "expense"), ("Environment", "environment")
+    ];    
     let path: PathBuf;
     if let Some(m) = m.value_of("database") {
         path = PathBuf::from(m);
@@ -67,8 +64,26 @@ fn main() {
                 let numb: Vec<_> = list.into_iter()
                     .filter(|x| x["predicate"].eq("number") & x["subject"].eq(&assett["subject"]))
                     .collect();
-                let v: f64 = value[0]["object"].as_f64().unwrap() * numb[0]["object"].as_f64().unwrap();
-                println!("{}, attached to: {:?}, ${}", assett["subject"], owners, v)
+                let freq: Vec<_> = list.into_iter()
+                    .filter(|x| x["predicate"].eq("frequency") & x["subject"].eq(&assett["subject"]))
+                    .collect();
+                let v: f64;
+                if numb.len() == 1 {
+                    v = value[0]["object"].as_f64().unwrap() * numb[0]["object"].as_f64().unwrap(); 
+                } else {
+                    v = value[0]["object"].as_f64().unwrap() 
+                };
+                let f: String;
+                if freq.len() == 1 {
+                    f = freq[0]["object"].to_string(); 
+                } else {
+                    f = String::from("")
+                };
+                if owners.len() > 0 {
+                    println!("{}, attached to: {:?}, ${} {}", assett["subject"], owners, v, f)
+                } else {
+                    println!("{}, ${} {}", assett["subject"], v, f)
+                };
             }; 
           }
         }
@@ -96,7 +111,7 @@ fn main() {
     if let Some(m) = m.subcommand_matches("add") {
         if let Some(m) = m.subcommand_matches("person") {
             let name: &str = m.value_of("name").unwrap();
-            namecheck(&list, &name);
+            namecheck(&list, &name, true);
             let person = json!({
                 "subject": String::from(name),
                 "predicate": String::from("is"),
@@ -108,7 +123,7 @@ fn main() {
         // ADD ASSETT LOGIC
         if let Some(m) = m.subcommand_matches("assett") {
             let name: &str = m.value_of("name").unwrap();
-            namecheck(&list, &name);
+            namecheck(&list, &name, true);
             // ensure assett does not already exist
             let class = json!({
                 "subject": String::from(name),
@@ -170,6 +185,234 @@ fn main() {
             };
             savedb(&dblist, &path);
         }
+        if let Some(m) = m.subcommand_matches("debt") {
+            let name: &str = m.value_of("name").unwrap();
+            namecheck(&list, &name, true);
+            // ensure assett does not already exist
+            let class = json!({
+                "subject": String::from(name),
+                "predicate": String::from("is"),
+                "object": String::from("debt")
+            });
+            dblist.push(class);
+            let startdate = json!({
+                "subject": String::from(name),
+                "predicate": String::from("startdate"),
+                "object": m.value_of("startdate").unwrap().to_string()
+                // "object": NaiveDate::parse_from_str(
+                // m.value_of("startdate").unwrap(),
+                // "%Y-%m-%d"
+                // ).unwrap()
+            });
+            dblist.push(startdate);
+            let min = json!({
+                "subject": String::from(name),
+                "predicate": String::from("min"),
+                "object": m.value_of("min").unwrap().to_string().parse::<f32>().unwrap()
+            });
+            dblist.push(min);
+            let med = json!({
+                "subject": String::from(name),
+                "predicate": String::from("med"),
+                "object": m.value_of("med").unwrap().to_string().parse::<f32>().unwrap()
+            });
+            dblist.push(med);
+            let max = json!({
+                "subject": String::from(name),
+                "predicate": String::from("max"),
+                "object": m.value_of("max").unwrap().to_string().parse::<f32>().unwrap()
+            });
+            dblist.push(max);
+            let appreciation = json!({
+                "subject": String::from(name),
+                "predicate": String::from("appreciation"),
+                "object": m.value_of("appreciation").unwrap().to_string().parse::<f32>().unwrap()
+            });
+            dblist.push(appreciation);
+            let owners: Vec<_> = m.values_of("owners").unwrap().collect();
+            let owners: Vec<_> = owners.into_iter().map(|x| ownsplit(x.to_string())).collect();
+            let owners: Vec<_> = normalize(owners);
+            for owner in owners {
+                println!("{:?}", owner);
+                let own_obj = json!({
+                    "subject": owner.0,
+                    "predicate": owner.1,
+                    "object": String::from(name)
+                });
+                dblist.push(own_obj);
+            };
+            savedb(&dblist, &path);
+        }
+        if let Some(m) = m.subcommand_matches("income") {
+            let name: &str = m.value_of("name").unwrap();
+            namecheck(&list, &name, true);
+            // ensure assett does not already exist
+            let class = json!({
+                "subject": String::from(name),
+                "predicate": String::from("is"),
+                "object": String::from("income")
+            });
+            dblist.push(class);
+            let startdate = json!({
+                "subject": String::from(name),
+                "predicate": String::from("startdate"),
+                "object": m.value_of("startdate").unwrap().to_string()
+                // "object": NaiveDate::parse_from_str(
+                // m.value_of("startdate").unwrap(),
+                // "%Y-%m-%d"
+                // ).unwrap()
+            });
+            dblist.push(startdate);
+            let min = json!({
+                "subject": String::from(name),
+                "predicate": String::from("min"),
+                "object": m.value_of("min").unwrap().to_string().parse::<f32>().unwrap()
+            });
+            dblist.push(min);
+            let med = json!({
+                "subject": String::from(name),
+                "predicate": String::from("med"),
+                "object": m.value_of("med").unwrap().to_string().parse::<f32>().unwrap()
+            });
+            dblist.push(med);
+            let max = json!({
+                "subject": String::from(name),
+                "predicate": String::from("max"),
+                "object": m.value_of("max").unwrap().to_string().parse::<f32>().unwrap()
+            });
+            dblist.push(max);
+            let frequency = json!({
+                "subject": String::from(name),
+                "predicate": String::from("frequency"),
+                "object": m.value_of("frequency").unwrap().to_string()
+            });
+            dblist.push(frequency);
+
+            let appreciation = json!({
+                "subject": String::from(name),
+                "predicate": String::from("appreciation"),
+                "object": m.value_of("appreciation").unwrap().to_string().parse::<f32>().unwrap()
+            });
+            dblist.push(appreciation);
+            let owners: Vec<_> = m.values_of("owners").unwrap().collect();
+            let owners: Vec<_> = owners.into_iter().map(|x| ownsplit(x.to_string())).collect();
+            let owners: Vec<_> = normalize(owners);
+            for owner in owners {
+                println!("{:?}", owner);
+                let own_obj = json!({
+                    "subject": owner.0,
+                    "predicate": owner.1,
+                    "object": String::from(name)
+                });
+                dblist.push(own_obj);
+            };
+            savedb(&dblist, &path);
+        }
+        if let Some(m) = m.subcommand_matches("expense") {
+            let name: &str = m.value_of("name").unwrap();
+            namecheck(&list, &name, true);
+            // ensure assett does not already exist
+            let class = json!({
+                "subject": String::from(name),
+                "predicate": String::from("is"),
+                "object": String::from("expense")
+            });
+            dblist.push(class);
+            let startdate = json!({
+                "subject": String::from(name),
+                "predicate": String::from("startdate"),
+                "object": m.value_of("startdate").unwrap().to_string()
+                // "object": NaiveDate::parse_from_str(
+                // m.value_of("startdate").unwrap(),
+                // "%Y-%m-%d"
+                // ).unwrap()
+            });
+            dblist.push(startdate);
+            let min = json!({
+                "subject": String::from(name),
+                "predicate": String::from("min"),
+                "object": m.value_of("min").unwrap().to_string().parse::<f32>().unwrap()
+            });
+            dblist.push(min);
+            let med = json!({
+                "subject": String::from(name),
+                "predicate": String::from("med"),
+                "object": m.value_of("med").unwrap().to_string().parse::<f32>().unwrap()
+            });
+            dblist.push(med);
+            let max = json!({
+                "subject": String::from(name),
+                "predicate": String::from("max"),
+                "object": m.value_of("max").unwrap().to_string().parse::<f32>().unwrap()
+            });
+            dblist.push(max);
+            let frequency = json!({
+                "subject": String::from(name),
+                "predicate": String::from("frequency"),
+                "object": m.value_of("frequency").unwrap().to_string()
+            });
+            dblist.push(frequency);
+
+            let appreciation = json!({
+                "subject": String::from(name),
+                "predicate": String::from("appreciation"),
+                "object": m.value_of("appreciation").unwrap().to_string().parse::<f32>().unwrap()
+            });
+            dblist.push(appreciation);
+            let owners: Vec<_> = m.values_of("owners").unwrap().collect();
+            let owners: Vec<_> = owners.into_iter().map(|x| ownsplit(x.to_string())).collect();
+            let owners: Vec<_> = normalize(owners);
+            for owner in owners {
+                println!("{:?}", owner);
+                let own_obj = json!({
+                    "subject": owner.0,
+                    "predicate": owner.1,
+                    "object": String::from(name)
+                });
+                dblist.push(own_obj);
+            };
+            savedb(&dblist, &path);
+        }
+
+    }
+
+    // set up editing
+    if let Some(m) = m.subcommand_matches("edit") {
+        let subj = m.value_of("subject").unwrap();
+        let pred = m.value_of("predicate").unwrap();
+        let obj = m.value_of("object").unwrap();
+        if is_number(pred) {
+            let edit = json!({
+            "subject": String::from(subj),
+            "predicate": as_f32(pred).unwrap(),
+            "object":String::from(obj)
+            });
+            namecheck(&list, &subj, false);
+            namecheck(&list, &obj, false);
+            dblist.retain(|x| !(x["subject"].eq(subj) & x["object"].eq(obj)));
+            dblist.push(edit);
+            savedb(&dblist, &path);
+        } else {
+            namecheck(&list, &subj, false);
+            predcheck(&pred, &obj);
+            let edit;
+            if is_number(obj) {
+                edit = json!({
+                "subject": String::from(subj),
+                "predicate": String::from(pred),
+                "object": as_f32d(obj, 999f32)
+            });
+            } else {
+                edit = json!({
+                "subject": String::from(subj),
+                "predicate": String::from(pred),
+                "object": String::from(obj)
+            });
+            }
+            dblist.retain(|x| !(x["subject"].eq(subj) & x["predicate"].eq(pred)));
+            dblist.push(edit);
+            savedb(&dblist, &path);
+        }
     }
 }
 
@@ -185,14 +428,55 @@ fn savedb(
         .expect("Unable to save to database... ");
 }
 
+fn predcheck(
+    pred: &str,
+    obj: &str
+    ) {
+    // list of non-float predicates
+    const PREDICATES: [&str; 12] = [
+        "min", "max", "med", "frequency", "appreciation", "volatility", "ticker", "type", "is",
+        "number", "startdate", "enddate"
+    ];
+    const ITEMS: [&str; 6] = [
+        "person", "assett", "debt", "income", "expense", "environment"
+    ];
+    if !PREDICATES.contains(&pred){
+        let msg = format!("{} does not exist", &pred);
+        println!("{}", msg);
+        process::exit(1);
+    }
+    if pred == "is" {
+        if !ITEMS.contains(&obj){
+            let msg = format!("{} not in {:?}", &obj, ITEMS);
+            println!("{}", msg);
+            process::exit(1);
+        }
+    }
+}
+
 fn namecheck(
     list: &Vec<serde_json::value::Value>, 
-    name: &str
+    name: &str,
+    dir: bool
     ) {
     let all_names: Vec<_> = list.into_iter()
         .filter(|x| x["predicate"] == "is").map(|x| x["subject"].as_str().unwrap())
         .collect();
-    assert!(!all_names.contains(&name), "Assett already exists");
+    if dir {
+        if all_names.contains(&name){
+            let msg = format!("{} already exists", &name);
+            println!("{}", msg);
+            process::exit(1);
+            // assert!(!all_names.contains(&name));
+        }
+    } else {
+        if !all_names.contains(&name){
+            let msg = format!("{} does not exist", &name);
+            println!("{}", msg);
+            process::exit(1);
+            //assert!(all_names.contains(&name));
+        }
+    }
 }
 
 #[allow(dead_code)]
